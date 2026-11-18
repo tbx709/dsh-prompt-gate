@@ -21,7 +21,8 @@ This plugin moves the guessing before the work starts, and never presses *approv
 Requires DSH **>= 0.2.2-alpha.2** (the contracts this plugin relies on — `sessionProjections`, `tools.guard`, `output.presentationMeta` — are pinned to that version; older releases are untested).
 
 ```sh
-dsh plugin --profile web add github:tbx709/dsh-prompt-gate
+dsh plugin --profile web add dsh-prompt-gate          # from npm
+dsh plugin --profile web add github:tbx709/dsh-prompt-gate   # from GitHub
 ```
 
 Or clone the repository and install the directory from **Plugins → install_bundle**. If the plugin row reports a load failure after install, restart dsh once so it loads a fresh module generation.

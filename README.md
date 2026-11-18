@@ -24,7 +24,13 @@ DSH 需要 **>= 0.2.2-alpha.2**（本插件用到的 `sessionProjections`、`too
 
 把仓库克隆到本地，在 **Plugins** 页通过 `install_bundle` 安装该目录。
 
-### 命令行
+### npm（推荐）
+
+```sh
+dsh plugin --profile web add dsh-prompt-gate
+```
+
+### 命令行（从 GitHub）
 
 ```sh
 dsh plugin --profile web add github:tbx709/dsh-prompt-gate
