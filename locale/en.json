@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt gate",
+    "description": "Rewrites the first message of a new session into a prompt dsh can execute, and unlocks the tools only after you approve it."
+  }
+}

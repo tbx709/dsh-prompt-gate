@@ -1,0 +1,3 @@
+- insert:
+    - id: prompt-gate
+      name: dsh-prompt-gate
