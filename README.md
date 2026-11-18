@@ -16,17 +16,6 @@ English: [README.en.md](README.en.md)
 2. 简报以卡片形式出现在输入框位置；你可以写修改意见让它重写，循环到满意；
 3. 你点「确认，开始执行」之后工具才解锁，模型才真的动手。
 
-## 与其他提示词插件的分工
-
-| 插件 | 触发 | 产物 | 拦执行 |
-| --- | --- | --- | --- |
-| **dsh-prompt-gate**（本插件） | **新会话第一条消息，自动** | 结构化任务简报 | ✅ `tools.guard` 硬锁 |
-| [dsh-prompt-forge](https://github.com/Aliboder/dsh-prompt-forge) | 输入框按钮，手动点 | 改写后的草稿（替换 / 复制 / 撤销） | ❌ |
-| [dsh-plan-gate](https://github.com/male404/dsh-plan-gate) | 每一轮，自动 | 执行方案 | ✅ 同样硬锁 |
-| [dsh-clarify](https://github.com/pyc123720/dsh-clarify)、[dsh-grill-first](https://github.com/InoriMutsumi/dsh-grill-first) | 每轮 / 手动开关 | 澄清后的需求卡 | 提示词级或可选档位 |
-
-一句话：别人改写草稿、闸住方案、或追问需求；这个插件只在新会话的第一句话上自动开闸。
-
 ## 安装
 
 DSH 需要 **>= 0.2.2-alpha.2**（本插件用到的 `sessionProjections`、`tools.guard`、`output.presentationMeta` 契约以该版本为准，更早版本未验证）。

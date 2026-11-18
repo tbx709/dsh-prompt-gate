@@ -16,15 +16,6 @@ This plugin moves the guessing before the work starts, and never presses *approv
 2. The brief appears as a card above the composer. Write a change request and it rewrites again — as many rounds as you like.
 3. Tools stay locked until you choose **Approve**.
 
-## How it differs
-
-| Plugin | Trigger | Artifact | Blocks execution |
-| --- | --- | --- | --- |
-| **dsh-prompt-gate** (this one) | **first message of a new session, automatic** | structured task brief | ✅ monotonic `tools.guard` |
-| [dsh-prompt-forge](https://github.com/Aliboder/dsh-prompt-forge) | a composer button, on demand | rewritten draft (replace / copy / undo) | ❌ |
-| [dsh-plan-gate](https://github.com/male404/dsh-plan-gate) | every turn, automatic | execution plan | ✅ same mechanism |
-| [dsh-clarify](https://github.com/pyc123720/dsh-clarify), [dsh-grill-first](https://github.com/InoriMutsumi/dsh-grill-first) | every turn / manual switch | clarified requirement card | prompt-level or opt-in |
-
 ## Install
 
 Requires DSH **>= 0.2.2-alpha.2** (the contracts this plugin relies on — `sessionProjections`, `tools.guard`, `output.presentationMeta` — are pinned to that version; older releases are untested).
