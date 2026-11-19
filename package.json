@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-gate",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rewrites the first message of a new session into a prompt dsh can execute, and unlocks the tools only after you approve it.",
   "type": "module",
   "license": "MIT",
@@ -34,7 +34,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
-    "README.en.md",
+    "README.zh.md",
     "LICENSE"
   ],
   "scripts": {
