@@ -10,7 +10,7 @@ has to guess the rest.
 `dsh-prompt-gate` stops the guessing. The first message is rewritten into a brief dsh can actually
 execute and shown to you as a card — and **its tools stay locked until you approve**.
 
-[中文说明](README.zh.md)
+[中文](README.zh.md)
 
 ---
 
