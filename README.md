@@ -1,6 +1,7 @@
 # dsh-prompt-gate
 
 [![npm](https://img.shields.io/npm/v/dsh-prompt-gate)](https://www.npmjs.com/package/dsh-prompt-gate)
+[![ci](https://github.com/tbx709/dsh-prompt-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/tbx709/dsh-prompt-gate/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/dsh-prompt-gate)](LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.2.2--alpha.2-4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
 
