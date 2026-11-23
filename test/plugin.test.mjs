@@ -354,7 +354,11 @@ async function runTool({ config, answers, ask, text }) {
   const dismissed = await runTool({
     ask: async () => { throw Object.assign(new Error('cancelled'), { code: 'ASK_CANCELLED' }) },
   })
-  assert.deepEqual(await dismissed.execute({ mode: 'review', prompt: '草稿' }, dismissed.exec), { outcome: 'skipped' })
+  assert.deepEqual(
+    await dismissed.execute({ mode: 'review', prompt: '草稿' }, dismissed.exec),
+    { outcome: 'skipped', reason: 'dismissed' },
+    'a closed card says so instead of claiming no review was pending',
+  )
 }
 
 {
@@ -374,7 +378,7 @@ async function runTool({ config, answers, ask, text }) {
     }),
   })
   const value = await timed.execute({ mode: 'review', prompt: '草稿' }, timed.exec)
-  assert.deepEqual(value, { outcome: 'skipped' })
+  assert.deepEqual(value, { outcome: 'skipped', reason: 'timeout' })
   assert.equal(observedAbort, true, 'the wait carried a timeout signal')
   assert.ok(Date.now() - started < 5000, 'timed out promptly')
   clearInterval(keepAlive)
@@ -386,6 +390,39 @@ async function runTool({ config, answers, ask, text }) {
   await assert.rejects(() => forced.execute({ mode: 'pass' }, forced.exec), /requires the review/)
   const empty = await runTool({ answers: [] })
   await assert.rejects(() => empty.execute({ mode: 'review', prompt: '   ' }, empty.exec), /requires the rewritten brief/)
+}
+
+{
+  // A waived review unlocks the tools; the next assembly has to say so.
+  const session = makeSession()
+  session.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'make it nicer' }] })
+  const agent = makeAgent(session)
+  const { host, tool } = await start({ agents: [agent] })
+  assert.equal(tool.options.when({ agent }), true)
+  for (const listener of host.listeners.filter(entry => entry.event === 'agent/turn-stopping')) {
+    listener.fn({ agent, turn: 1 })
+  }
+  assert.equal(tool.options.when({ agent }), false, 'the waiver releases the turn')
+  assert.match(sectionTextOf(host, agent), /Prompt review skipped/, 'the bypass is disclosed')
+  session.append('turn/start', { turn: 2 })
+  assert.match(sectionTextOf(host, agent), /Prompt review skipped/, 'still disclosed on the next turn')
+  session.append('turn/start', { turn: 3 })
+  assert.equal(sectionTextOf(host, agent), '', 'and gone once the user has had that turn')
+}
+
+{
+  // The brief must open with what the model decided on the user's behalf.
+  const zh = makeSession()
+  zh.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '把登录页改好看点' }] })
+  const zhAgent = makeAgent(zh)
+  const zhHost = await start({ agents: [zhAgent] })
+  assert.match(sectionTextOf(zhHost.host, zhAgent), /## 我替你补的假设/, 'Chinese briefs lead with the assumptions')
+
+  const en = makeSession()
+  en.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'make the login page nicer' }] })
+  const enAgent = makeAgent(en)
+  const enHost = await start({ agents: [enAgent] })
+  assert.match(sectionTextOf(enHost.host, enAgent), /## Assumptions I added/, 'English briefs lead with the assumptions')
 }
 
 // --- config ----------------------------------------------------------------

@@ -211,6 +211,14 @@ export function resolveConfig(config) {
   return { ...resolved, copy }
 }
 
+/** Rendered once after a review was waived, so the bypass is not silent. */
+const BYPASS_SECTION = [
+  '## Prompt review skipped',
+  '',
+  'The previous turn ended before the user saw the expected review card, so it ran without one.',
+  'Say this plainly in your next reply — one sentence, no apology theater — and continue with the work.',
+].join('\n')
+
 /** The brief headings, in the language the card speaks. */
 const BRIEF_HEADINGS = {
   zh: [
@@ -259,15 +267,20 @@ function sectionText(config, language) {
     '   - Already a complete, unambiguous instruction (clear goal, scope, and definition of done), or a',
     '     simple one-shot question: call `review_prompt` with `mode="pass"`, then do the task normally.',
     '   - Vague, broad, multi-part, or missing a definition of done: rewrite it.',
-    '2. Rewrite it as a self-contained brief that a later step can execute without reading this conversation.',
-    '   Use the user\'s language and markdown, with these headings:',
+    '2. Open the brief with what you had to decide for the user. Put `' + (language === 'en' ? '## Assumptions I added' : '## 我替你补的假设') + '`',
+    '   first, at most three bullets, each one a fact the message did not state — a file, a scope limit, an',
+    '   acceptance check. If the message already decided everything, write 无 / none under the heading.',
+    '   Never list something the user did say: this section is the one place where the user checks whether',
+    '   you understood them, so it must be short enough to read in a glance and honest enough to trust.',
+    '3. Then rewrite the rest as a self-contained brief that a later step can execute without reading this',
+    '   conversation. Use the user\'s language and markdown, with these headings:',
     ...headings,
-    '3. Keep every fact, constraint, and intent the user gave. Add structure, a definition of done, and safe',
+    '4. Keep every fact, constraint, and intent the user gave. Add structure, a definition of done, and safe',
     '   assumptions; mark a real unknown as `待确认` instead of guessing, and add no requirement the user did',
     '   not imply.',
-    '4. Stay dense: no filler, no restating of tool documentation, and normally under 400 Chinese characters',
+    '5. Stay dense: no filler, no restating of tool documentation, and normally under 400 Chinese characters',
     '   or 250 English words.',
-    '5. Call `review_prompt` with `mode="review"` and the brief, then follow its result:',
+    '6. Call `review_prompt` with `mode="review"` and the brief, then follow its result:',
     `   - \`confirmed\` — the returned brief is the task instruction for ${lifetime}; execute it.`,
     '   - `revise` — apply the feedback and call `review_prompt` again; repeat until it is confirmed.',
     '   - `skipped` — carry out the user\'s original message as written.',
@@ -306,16 +319,18 @@ function isEligibleHeader(header) {
 /**
  * Bound one user-questions wait: the caller's own cancellation plus a hard
  * ceiling. Both Node primitives are feature-checked so an older runtime keeps
- * the caller signal instead of throwing.
+ * the caller signal instead of throwing. The ceiling is returned separately so
+ * a failure can tell "the user closed the card" from "the card timed out".
  *
  * @param caller - the tool call's own cancellation signal.
- * @param ms - positive timeout in milliseconds.
- * @returns A signal that aborts when either input does.
+ * @param ms - timeout in milliseconds; `0` means no ceiling.
+ * @returns The signal to wait on, and the ceiling that fired (if any).
  */
 function waitSignal(caller, ms) {
-  if (!(ms > 0) || typeof AbortSignal.timeout !== 'function') return caller
+  if (!(ms > 0) || typeof AbortSignal.timeout !== 'function') return { signal: caller, timeout: undefined }
   const timeout = AbortSignal.timeout(ms)
-  return typeof AbortSignal.any === 'function' ? AbortSignal.any([caller, timeout]) : timeout
+  const signal = typeof AbortSignal.any === 'function' ? AbortSignal.any([caller, timeout]) : timeout
+  return { signal, timeout }
 }
 
 /** Whether a value is this plugin's persisted fold state. */
@@ -454,7 +469,7 @@ export async function apply(ctx, config) {
     if (settings.scope === 'every' && exemptPhrases.size > 0
       && exemptPhrases.has(normalizePhrase(anchorTextOf(state)))) return false
     if (state.settled >= anchor) return false
-    return waived.get(session) !== anchor
+    return waived.get(session)?.anchor !== anchor
   }
 
   let sectionOrder = 500
@@ -468,7 +483,14 @@ export async function apply(ctx, config) {
     order: sectionOrder,
     text: (context) => {
       const session = context?.agent?.session
-      return reviewOpen(session) ? sectionText(settings, languageOf(session)) : ''
+      if (reviewOpen(session)) return sectionText(settings, languageOf(session))
+      if (session === undefined) return ''
+      // A waived review unlocked the tools without the user ever seeing a card.
+      // Say so on the next assembly instead of letting the bypass pass silently.
+      const waiver = waived.get(session)
+      if (waiver === undefined) return ''
+      if (review.stateOf(session).turns > waiver.turn + 1) return ''
+      return BYPASS_SECTION
     },
   })
 
@@ -512,7 +534,8 @@ export async function apply(ctx, config) {
   ctx.on('agent/turn-stopping', ({ agent }) => {
     const session = agent.session
     if (!reviewOpen(session)) return
-    waived.set(session, anchorOf(review.stateOf(session)))
+    const state = review.stateOf(session)
+    waived.set(session, { anchor: anchorOf(state), turn: state.turns })
   })
 
   const definition = {
@@ -546,9 +569,9 @@ export async function apply(ctx, config) {
           feedback: { type: 'string' },
           reason: {
             type: 'string',
-            enum: ['pass'],
-            description: 'Set when the model reported the message as already complete, so the result can say so '
-              + 'instead of looking like a review the user dismissed.',
+            enum: ['pass', 'dismissed', 'timeout', 'unavailable'],
+            description: 'Why the review ended without an answer, so the transcript can say it plainly instead of '
+              + 'looking like a review nobody ever asked for.',
           },
         },
         required: ['outcome'],
@@ -586,6 +609,17 @@ export async function apply(ctx, config) {
             type: 'text',
             text: 'No review was needed: the message is already a complete instruction, so nothing was '
               + 'rewritten. Carry it out as written.',
+          }]
+        }
+        if (value.reason !== undefined) {
+          const why = value.reason === 'timeout'
+            ? 'The review card timed out without an answer'
+            : value.reason === 'unavailable'
+              ? 'The review channel was gone'
+              : 'The user closed the review card without answering'
+          return [{
+            type: 'text',
+            text: `${why}, so the gate is open for this turn. Carry out the user's original message as written.`,
           }]
         }
         return [{
@@ -627,11 +661,11 @@ export async function apply(ctx, config) {
       const questions = ctx.get('userQuestions')
       // The gate admits this tool only where a review channel exists, so a
       // missing service here means the channel went away mid-review: fail open.
-      if (questions === undefined) return { outcome: 'skipped' }
+      if (questions === undefined) return { outcome: 'skipped', reason: 'unavailable' }
       // Bound the wait so a closed browser or a stalled answerer cannot pin the
       // turn forever. A caller abort keeps its own failure; anything else —
       // timeout, dismissal, unavailable card — means the user declined to review.
-      const signal = waitSignal(exec.signal, settings.timeoutMs)
+      const { signal, timeout } = waitSignal(exec.signal, settings.timeoutMs)
       // The card speaks the language of the message it is reviewing; a deployment
       // that pinned `language` overrides that choice.
       const copy = copyFor(settings, languageOf(session))
@@ -657,7 +691,7 @@ export async function apply(ctx, config) {
         })
       } catch (error) {
         if (exec.signal?.aborted === true) throw error
-        return { outcome: 'skipped' }
+        return { outcome: 'skipped', reason: timeout?.aborted === true ? 'timeout' : 'dismissed' }
       }
       const item = Array.isArray(answer?.answers)
         ? answer.answers.find(entry => entry?.id === QUESTION_ID)

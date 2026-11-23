@@ -31,6 +31,10 @@
 你收到：
 
 ```text
+## 我替你补的假设
+- 「登录页」指 apps/web/src/pages/login.tsx
+- 「好看点」只动视觉：不改路由、文案、组件结构
+
 ## 任务
 把 apps/web 的登录页视觉升级，保持现有路由与文案不变。
 
@@ -111,7 +115,7 @@ dsh plugin --profile web add github:tbx709/dsh-prompt-gate      # 从 GitHub
 
 | 部件 | 作用 |
 | --- | --- |
-| `promptGate` session projection | 纯函数折叠四个数字：`firstHuman` / `lastHuman`（人类消息的 seq）、`settled`（本插件结果为 confirmed/skipped 的最新 seq）、`turns`。开闸 = `settled < anchor`（`first` 还要求 `turns <= 1`）。进程重启、会话恢复、插件重载后答案一致。 |
+| `promptGate` session projection | 纯函数折叠四个数字：`firstHuman` / `lastHuman`（人类消息的 seq）、`settled`（本插件结果为 confirmed/skipped 的最新 seq）、`turns`，外加那两条消息的正文（截断到 280 字）——卡片的中英文切换就靠它，不需要 locale 服务。开闸 = `settled < anchor`（`first` 还要求 `turns <= 1`）。进程重启、会话恢复、插件重载后答案一致。 |
 | `systemPrompt.section` | 只在开闸时注入协议段落：先改写、再交审、确认后才执行。 |
 | `review_prompt` 工具 | 只在开闸时被准入（注册时的 `when`），负责弹卡片、收决定。 |
 | `tools.guard` | 开闸期间拒绝其他工具。guard 是单调的，任何监听器都无法把拒绝改回允许。 |

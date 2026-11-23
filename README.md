@@ -34,6 +34,10 @@ You type:
 You get:
 
 ```text
+## Assumptions I added
+- "login page" means apps/web/src/pages/login.tsx
+- "nicer" is visual only: no route, copy, or component-structure change
+
 ## Task
 Upgrade the visual design of the login page in apps/web, keeping its route and copy untouched.
 
@@ -53,6 +57,9 @@ Upgrade the visual design of the login page in apps/web, keeping its route and c
 1. Read login.module.css and tokens.css
 2. Rework spacing and type scale first, then color
 ```
+
+The brief opens with what the model had to decide for you — at most three lines, only things your
+message did not say. That is the one thing you check before approving: did it read you correctly?
 
 Two buttons sit under it. **Approve** starts the work under that brief. Type a change request into the
 answer field instead, and it rewrites and asks again — as many rounds as you like.
@@ -113,14 +120,17 @@ whatever the user types.
 
 No browser code and no private state machine — the gate is derived from the session log:
 
-- a `promptGate` session projection folds four numbers: first and last human message, the latest
-  settled review, and the turn count;
+- a `promptGate` session projection folds four numbers — first and last human message, the latest
+  settled review, the turn count — plus the text of those two messages (capped at 280 characters), which
+  is how the card follows the user's language without a locale service;
 - a `systemPrompt.section` renders the protocol only while a review is open;
 - the `review_prompt` tool is admitted only while a review is open (its registration `when`);
 - a `tools.guard` denies every other tool meanwhile — monotonic, so no listener can turn a denial back
   into permission;
 - `output.presentationMeta` records `{tool, outcome}` in `tool/result.meta`, and that is what closes the
-  gate. Restart, resume and plugin reload derive the same answer.
+  gate. Restart, resume and plugin reload derive the same answer;
+- a review waived by the turn-end valve is disclosed in the next prompt section, so a model that skipped
+  the review does not bypass it silently.
 
 The only process-local state is the waiver for a model that never opens the review at all; it, too, is
 re-derived from the log.
