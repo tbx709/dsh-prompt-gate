@@ -1,5 +1,10 @@
 # dsh-prompt-gate · 提示词闸门
 
+[![npm](https://img.shields.io/npm/v/dsh-prompt-gate)](https://www.npmjs.com/package/dsh-prompt-gate)
+[![ci](https://github.com/tbx709/dsh-prompt-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/tbx709/dsh-prompt-gate/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/dsh-prompt-gate)](LICENSE)
+[![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.2.2--alpha.2-4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
+
 **没人教过你怎么跟 agent 说话。** 你打开新会话，敲一句话，剩下的全让 dsh 去猜。
 
 这个插件不让它猜：第一条消息先被改写成 dsh 真能执行的简报，以卡片交给你确认，**没确认之前它一个工具都动不了**。
