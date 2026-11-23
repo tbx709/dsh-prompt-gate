@@ -94,9 +94,13 @@ dsh plugin --profile web add github:tbx709/dsh-prompt-gate      # 从 GitHub
 | `timeoutMs` | `900000` | 卡片最长等 15 分钟；超时按「用原文执行」放行，不会挂死回合。`0` 表示不超时。 |
 | `forceReview` | `false` | `true` 时禁止 `mode="pass"`，每条都强制过卡片。 |
 | `section` | `''` | 追加到内置协议段落末尾的额外指引（例如「提示词里必须带验收命令」）。 |
-| `header` / `question` | 中文文案 | 卡片标题与提问。 |
-| `approve` / `skip` | 中文文案 | 两个按钮的文案，必须互不相同。 |
-| `approveHint` / `skipHint` | 中文文案 | 按钮说明（悬停显示）。 |
+| `language` | `auto` | `auto` 跟随被审阅的那条消息：中文消息出中文卡片和中文小标题，英文消息出英文的。`zh` / `en` 固定语言。 |
+| `exemptPhrases` | `继续 接着 好的 好 行 可以 停 不用了 嗯 ok go continue` | `scope: every` 下这些消息属于推进而不是提需求，直接放行、不弹卡片。覆盖时整份替换。 |
+| `header` / `question` | 跟随 `language` | 卡片标题与提问。 |
+| `approve` / `skip` | 跟随 `language` | 两个按钮的文案，在每种语言下都必须互不相同。 |
+| `approveHint` / `skipHint` | 跟随 `language` | 按钮说明（悬停显示）。 |
+
+自定义的卡片文案对两种语言同时生效：钉死了措辞的部署，用户写什么语言都保持那套文案。
 
 > 卡片上没有「继续修改」按钮，是有意的：宿主问答卡片里选项和文字互斥（点选项会清空输入框，输入文字会取消选中），
 > 所以只留两个决定，**写文字本身就是修改请求**。`revise` / `reviseHint` 配置项已移除。

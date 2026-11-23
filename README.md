@@ -100,9 +100,14 @@ Override the row in the profile's `cordis.patch.yml`; every field is optional:
 | `timeoutMs` | `900000` | Longest wait for an answer (15 min); on timeout the original message proceeds. `0` disables the timeout. |
 | `forceReview` | `false` | Refuse the "already clear, skip the card" path. |
 | `section` | `''` | Extra guidance appended to the built-in protocol section. |
-| `header` / `question` | Chinese copy | Card heading and question. |
-| `approve` / `skip` | Chinese copy | The two button labels; they must differ. |
-| `approveHint` / `skipHint` | Chinese copy | Button tooltips. |
+| `language` | `auto` | `auto` follows the message being reviewed, so an English message gets an English card and brief headings. `zh` / `en` pin it. |
+| `exemptPhrases` | `继续 接着 好的 好 行 可以 停 不用了 嗯 ok go continue` | Under `scope: every` these messages steer instead of asking, so they are never gated. An override replaces the list entirely. |
+| `header` / `question` | follows `language` | Card heading and question. |
+| `approve` / `skip` | follows `language` | The two button labels; they must differ in every language. |
+| `approveHint` / `skipHint` | follows `language` | Button tooltips. |
+
+Any card-copy override applies to both languages, so a deployment that pins its own wording keeps it
+whatever the user types.
 
 ## How the gate works
 

@@ -215,9 +215,13 @@ const sectionTextOf = (host, agent) => host.sections[0].text({ agent })
 
 // --- tool execution --------------------------------------------------------
 
-async function runTool({ config, answers, ask }) {
+async function runTool({ config, answers, ask, text }) {
   const session = makeSession()
-  session.append('user/message', { role: 'user', source: { kind: 'user' } })
+  session.append('user/message', {
+    role: 'user',
+    source: { kind: 'user' },
+    ...text === undefined ? {} : { content: [{ type: 'text', text }] },
+  })
   const agent = makeAgent(session)
   const userQuestions = {
     ask: ask ?? (async () => ({ answers })),
@@ -274,8 +278,75 @@ async function runTool({ config, answers, ask }) {
 }
 
 {
+  // A pass is a decision the user never saw, so the result says so out loud.
   const pass = await runTool({ answers: [] })
-  assert.deepEqual(await pass.execute({ mode: 'pass' }, pass.exec), { outcome: 'skipped' })
+  const value = await pass.execute({ mode: 'pass' }, pass.exec)
+  assert.deepEqual(value, { outcome: 'skipped', reason: 'pass' })
+  const rendered = pass.result.host.tools[0].definition.output.render({}, value)[0].text
+  assert.match(rendered, /No review was needed/, 'the pass explains itself in the transcript')
+  assert.equal(
+    pass.result.host.tools[0].definition.output.presentationMeta({}, value).outcome,
+    'skipped',
+    'a pass still closes the gate',
+  )
+}
+
+{
+  // The card follows the language of the message it reviews.
+  let captured
+  const english = await runTool({
+    text: 'make the login page nicer',
+    ask: async (request) => {
+      captured = request
+      return { answers: [{ id: 'prompt-review', selected: ['Approve and start'] }] }
+    },
+  })
+  const value = await english.execute({ mode: 'review', prompt: '## Task\nDo it.' }, english.exec)
+  assert.deepEqual(value, { outcome: 'confirmed', prompt: '## Task\nDo it.' })
+  const question = captured.questions[0]
+  assert.deepEqual(question.options.map(option => option.label), ['Approve and start', 'Use the original'])
+  assert.match(question.question, /box below/, 'the English card points at the answer field')
+  const section = english.result.host.sections[0].text({ agent: english.exec.agent })
+  assert.match(section, /\*\*Task\*\*/, 'the brief headings match the card language')
+
+  // A Chinese message keeps the Chinese card, even with English identifiers in it.
+  const chinese = await runTool({
+    text: '把 login.tsx 的按钮改成圆角',
+    ask: async (request) => {
+      captured = request
+      return { answers: [] }
+    },
+  })
+  await chinese.execute({ mode: 'review', prompt: '草稿' }, chinese.exec)
+  assert.deepEqual(captured.questions[0].options.map(option => option.label), ['确认，开始执行', '用原文执行'])
+  assert.match(
+    chinese.result.host.sections[0].text({ agent: chinese.exec.agent }),
+    /\*\*任务\*\*/,
+    'Chinese message, Chinese headings',
+  )
+}
+
+{
+  // scope=every skips steering phrases and still reviews a real request.
+  const steer = makeSession()
+  steer.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '继续。' }] })
+  const agent = makeAgent(steer)
+  const { tool } = await start({ config: { scope: 'every' }, agents: [agent] })
+  assert.equal(tool.options.when({ agent }), false, 'a nudge does not open a review')
+
+  steer.append('tool/result', { turn: 1, step: 1, message: {}, meta: { tool: 'dsh-prompt-gate', outcome: 'skipped' } })
+  steer.append('user/message', {
+    role: 'user',
+    source: { kind: 'user' },
+    content: [{ type: 'text', text: '继续，但按钮也要改' }],
+  })
+  assert.equal(tool.options.when({ agent }), true, 'a nudge carrying work still reviews')
+
+  const custom = makeSession()
+  custom.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '好的' }] })
+  const customAgent = makeAgent(custom)
+  const configured = await start({ config: { scope: 'every', exemptPhrases: ['收到'] }, agents: [customAgent] })
+  assert.equal(configured.tool.options.when({ agent: customAgent }), true, 'an overridden list replaces the default')
 }
 
 {
@@ -320,6 +391,11 @@ async function runTool({ config, answers, ask }) {
 // --- config ----------------------------------------------------------------
 
 assert.throws(() => resolveConfig({ scope: 'daily' }), /scope must be/)
+assert.throws(() => resolveConfig({ language: 'fr' }), /language must be/)
+assert.throws(() => resolveConfig({ exemptPhrases: '继续' }), /array of strings/)
+assert.throws(() => resolveConfig({ exemptPhrases: [1] }), /array of strings/)
+assert.throws(() => resolveConfig({ approve: '一样', skip: '一样' }), /must differ/)
+assert.equal(resolveConfig({ header: 'Review' }).copy.header, 'Review')
 assert.throws(() => resolveConfig({ timeoutMs: -1 }), /timeoutMs must be/)
 assert.throws(() => resolveConfig({ revise: '继续修改' }), /no longer exists/)
 assert.equal(resolveConfig({}).timeoutMs, 900_000)
